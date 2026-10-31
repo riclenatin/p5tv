@@ -51,7 +51,6 @@ import com.chroniac.tvhome.R
 import java.util.Random
 import kotlin.math.PI
 import kotlin.math.ceil
-import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -307,34 +306,24 @@ fun CampStickers(palette: Palette, state: MenuState, time: DoubleState, modifier
 }
 
 /**
- * "COMMAND" with its ink outline (the "C" would vanish on the white hand otherwise) and the splash
- * behind its first letter, prerendered once. It fades in just before the art and never shakes.
+ * "COMMAND", drawn with a difference blend as in the game: black where it crosses the white hand
+ * (the hand's black outline turns white inside the "C"), light over the black coat. It fades in
+ * just before the art and never shakes.
  */
 @Composable
-fun CommandTitle(palette: Palette, state: MenuState, time: DoubleState, modifier: Modifier = Modifier) {
+fun CommandTitle(state: MenuState, time: DoubleState, modifier: Modifier = Modifier) {
     val command = ImageBitmap.imageResource(R.drawable.p5_command)
-    val splash = ImageBitmap.imageResource(R.drawable.p5_command_splash)
     Spacer(modifier.fillMaxSize().drawWithCache {
         val k = size.height / REF_H
         val art = ColorFilter.tint(ART)
-        val splashAt = Offset(54f, 36f)
-        val block = prerender(
-            ceil(maxOf(splashAt.x + command.width + COMMAND_OUTLINE, splash.width.toFloat())).toInt(),
-            ceil(maxOf(splashAt.y + command.height + COMMAND_OUTLINE, splash.height.toFloat())).toInt(),
-            ImageBitmapConfig.Argb8888,
-        ) {
-            drawImage(splash, colorFilter = art)
-            stampImage(command, splashAt, palette.ink, COMMAND_OUTLINE)
-            drawImage(command, topLeft = splashAt, colorFilter = art)
-        }
         onDrawBehind {
             val a = Opening.commandAlpha(gameFrame(time.doubleValue, state.openedAt))
-            if (a > 0f) scale(k, k, Offset.Zero) { drawImage(block, topLeft = Offset(804f, 702f) - splashAt, alpha = a) }
+            if (a > 0f) scale(k, k, Offset.Zero) {
+                drawImage(command, topLeft = Offset(804f, 702f), alpha = a, colorFilter = art, blendMode = BlendMode.Difference)
+            }
         }
     })
 }
-
-private const val COMMAND_OUTLINE = 7f
 
 /** Runs [block] with the origin at ([x], [y]) in the 1080p frame, rotated [degrees] clockwise. */
 private inline fun DrawScope.at(x: Float, y: Float, degrees: Float, block: DrawScope.() -> Unit) {
@@ -703,17 +692,6 @@ private val MONEY_RIMS = intArrayOf(
     R.drawable.p5_money_rim_4, R.drawable.p5_money_rim_5, R.drawable.p5_money_rim_6, R.drawable.p5_money_rim_7,
     R.drawable.p5_money_rim_8, R.drawable.p5_money_rim_9,
 )
-
-private val RING = Array(16) { k -> Offset(cos(k * PI / 8).toFloat(), sin(k * PI / 8).toFloat()) }
-
-/** Ink outline for a white sprite, stamped from offset tinted copies (prerender only). */
-private fun DrawScope.stampImage(image: ImageBitmap, topLeft: Offset, color: Color, radius: Float) {
-    val tint = ColorFilter.tint(color)
-    for (d in RING) {
-        drawImage(image, topLeft = topLeft + d * radius, colorFilter = tint)
-        drawImage(image, topLeft = topLeft + d * (radius * 0.5f), colorFilter = tint)
-    }
-}
 
 /**
  * Text ("21:05") in the camp menu's money digits, the game's "¥6,340" corner: white digits over

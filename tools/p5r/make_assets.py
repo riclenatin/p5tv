@@ -53,7 +53,7 @@ BIG_DIGITS = [40, 41, 42, 43, 44, 45, 46, 47, 48, 49]  # "BG 数字:0..9"
 CASH = list(range(211, 221))  # "お金数字 0..9": the camp menu's "¥6,340"
 CASH_RIM = list(range(222, 232))  # "お金数字ふち": their outline layer
 en = Cpk(f"{GAME}/CPK/EN.CPK")
-camp = sprites(en.read("INIT/P5CAMP_00SPD.SPD"), {208, 36, 53, 54, 55, 68, 486, *BIG_DIGITS, *CASH, *CASH_RIM})
+camp = sprites(en.read("INIT/P5CAMP_00SPD.SPD"), {208, 53, 54, 55, 68, 486, *BIG_DIGITS, *CASH, *CASH_RIM})
 
 # Joker: cropped to the drawn area, 0.506 of the texture size; everything below 1100 px is off-screen.
 art = Image.open(io.BytesIO(Cpk(f"{GAME}/CPK/BASE.CPK").read("CAMP/HEROTEX/P5_CAMPTOP_2D.DDS"))).convert("RGBA")
@@ -64,7 +64,6 @@ art.save(f"{RES}/drawable-nodpi/p5_camptop.png", optimize=True)
 print("p5_camptop", art.size)
 
 save(camp[208], "p5_command", 0.445)
-save(camp[36], "p5_command_splash", 0.726)  # "COMMAND用 しぶき"
 save(camp[53], "p5_dont_look", 0.40)  # "Dont Look at"
 save(camp[54], "p5_like_that", 0.60)
 save(camp[55], "p5_menu", 0.62)  # "MENU:"

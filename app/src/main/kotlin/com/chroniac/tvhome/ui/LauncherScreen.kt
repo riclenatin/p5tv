@@ -200,7 +200,7 @@ fun LauncherScreen(
                 CommandNumber(state, palette, time)
                 CampStickers(palette, state, time)
                 OpeningSilhouettes(state, time)
-                CommandTitle(palette, state, time)
+                CommandTitle(state, time)
                 CommandList(entries, state, time, palette)
                 CommandCaption(
                     text = captionFor(selected, bond, arcana),

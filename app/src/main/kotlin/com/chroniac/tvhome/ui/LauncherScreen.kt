@@ -194,12 +194,13 @@ fun LauncherScreen(
                 DateBadge(weather, palette, Modifier.padding(start = 40.dp, top = 24.dp))
             }
             ThemeLayout.Phantom -> {
-                // Opening order as in the game: the silhouettes cover the stickers, COMMAND covers them.
+                // Layer order as in the game's opening: the silhouettes cover the big number, the
+                // stickers and plates stay on top of them, and COMMAND blends over everything.
                 PhantomBackdrop(palette, state, time)
                 CampHero(state, time)
                 CommandNumber(state, palette, time)
+                OpeningSilhouettes(state, time, palette)
                 CampStickers(palette, state, time)
-                OpeningSilhouettes(state, time)
                 CommandTitle(state, time)
                 CommandList(entries, state, time, palette)
                 CommandCaption(

@@ -20,3 +20,4 @@ __pycache__/
 # They belong to ATLUS/SEGA: regenerate them locally, never commit them.
 app/src/main/res/drawable-nodpi/p5_*
 app/src/main/res/raw/p5_*
+app/src/main/assets/p5_*

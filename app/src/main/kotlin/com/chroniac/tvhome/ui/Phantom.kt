@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DoubleState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
@@ -22,7 +24,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.ImageBitmapConfig
 import androidx.compose.ui.graphics.Path
@@ -33,6 +34,7 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.res.imageResource
@@ -49,6 +51,8 @@ import androidx.compose.ui.unit.sp
 import com.chroniac.tvhome.Entry
 import com.chroniac.tvhome.R
 import java.util.Random
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.PI
 import kotlin.math.ceil
 import kotlin.math.max
@@ -97,63 +101,97 @@ private inline fun DrawScope.shaken(shake: FloatArray?, k: Float, anchorX: Float
     }, block)
 }
 
-/** Static layers (room, coat shadow, star panel), prerendered once per size; they shake on opening. */
+/**
+ * Static layers (room, coat shadow, star panel), prerendered once per size; they shake on opening.
+ * While the silhouettes play, the panel reaches further left behind an edge that swings round
+ * ([Opening.panelEdgeSlope]), so it is a second, wider star layer clipped per frame.
+ */
 @Composable
 fun PhantomBackdrop(palette: Palette, state: MenuState, time: DoubleState, modifier: Modifier = Modifier) {
     Spacer(modifier.fillMaxSize().drawWithCache {
         val k = size.height / REF_H
-        val image = prerender(size.width.roundToInt(), size.height.roundToInt(), ImageBitmapConfig.Rgb565) {
+        val frame = size
+        val rest = prerender(size.width.roundToInt(), size.height.roundToInt(), ImageBitmapConfig.Rgb565) {
             drawCampBackdrop(palette)
         }
+        val starsLeft = OPENING_STARS_LEFT * k
+        val stars = prerender((size.width - starsLeft).roundToInt(), size.height.roundToInt(), ImageBitmapConfig.Rgb565) {
+            translate(-starsLeft, 0f) { drawStarField(palette.ink, frame, opening = true) }
+        }
+        val edges = List(Opening.ART) { n ->
+            val top = Opening.panelEdgeTop(n) * k
+            val bottom = top + Opening.panelEdgeSlope(n) * size.height
+            polygon(Offset(top, 0f), Offset(size.width, 0f), Offset(size.width, size.height), Offset(bottom, size.height))
+        }
         onDrawBehind {
-            shaken(Opening.backgroundShake(gameFrame(time.doubleValue, state.openedAt)), k, 225f, 540f) { drawImage(image) }
+            val n = gameFrame(time.doubleValue, state.openedAt)
+            if (n < Opening.ART) {
+                drawRoom()
+                clipPath(edges[n.coerceAtLeast(0)]) { drawImage(stars, topLeft = Offset(starsLeft, 0f)) }
+            } else {
+                shaken(Opening.backgroundShake(n), k, 225f, 540f) { drawImage(rest) }
+            }
         }
     })
+}
+
+/** Left end of the opening's star layer: the panel edge never comes further left (frame px). */
+private const val OPENING_STARS_LEFT = 800f
+
+/** Out-of-focus room behind the menu: a darker wall on the left and two soft, lighter patches. */
+private fun DrawScope.drawRoom() {
+    val w = size.width
+    val h = size.height
+    drawRect(ROOM)
+    drawPath(polygon(Offset(0f, 0f), Offset(w * 0.12f, 0f), Offset(w * 0.08f, h), Offset(0f, h)), ROOM_DEEP)
+    drawCircle(ROOM_LIGHT, h * 0.15f, Offset(w * 0.13f, h * 0.17f), alpha = 0.6f)
+    drawCircle(ROOM_LIGHT, h * 0.24f, Offset(w * 0.17f, h * 0.92f), alpha = 0.35f)
 }
 
 private fun DrawScope.drawCampBackdrop(p: Palette) {
     val w = size.width
     val h = size.height
-    drawRect(ROOM)
-    // Out-of-focus shapes of the room: a darker wall on the left and two soft, lighter patches.
-    drawPath(polygon(Offset(0f, 0f), Offset(w * 0.12f, 0f), Offset(w * 0.08f, h), Offset(0f, h)), ROOM_DEEP)
-    drawCircle(ROOM_LIGHT, h * 0.15f, Offset(w * 0.13f, h * 0.17f), alpha = 0.6f)
-    drawCircle(ROOM_LIGHT, h * 0.24f, Offset(w * 0.17f, h * 0.92f), alpha = 0.35f)
+    drawRoom()
     // Black behind Joker's coat, then the black-and-white star panel on the right.
     drawPath(polygon(Offset(w * 0.55f, h), Offset(w * 0.66f, 0f), Offset(w, 0f), Offset(w, h)), p.ink)
-    drawStarPanel(polygon(Offset(w * 0.677f, 0f), Offset(w, 0f), Offset(w, h), Offset(w * 0.755f, h)), p.ink)
+    val panel = polygon(Offset(w * 0.677f, 0f), Offset(w, 0f), Offset(w, h), Offset(w * 0.755f, h))
+    clipPath(panel) { drawStarField(p.ink, size) }
+    drawPath(panel, p.ink, style = Stroke(h * 0.006f))
 }
 
 /**
- * The camp background's starbursts: big stars in concentric black and white bands, overlapping
- * until no plain paper is left, and small solid stars on top.
+ * The camp background's starbursts in a [frame]-sized layout: big stars in concentric black and
+ * white bands, overlapping until no plain paper is left, and small solid stars on top. The
+ * [opening] panel gets more bursts underneath, where it reaches further left than the resting one.
  */
-private fun DrawScope.drawStarPanel(area: Path, ink: Color) {
-    val w = size.width
-    val h = size.height
-    val random = Random(11) // fixed seed: the same wallpaper every time
-    clipPath(area) {
-        drawRect(ink)
-        repeat(16) {
-            val c = Offset(w * (0.66f + random.nextFloat() * 0.36f), h * (random.nextFloat() * 1.15f - 0.08f))
-            val rot = random.nextFloat() * 72f
-            val band = h * (0.016f + random.nextFloat() * 0.01f)
-            var r = h * (0.14f + random.nextFloat() * 0.16f)
-            var k = 0
-            while (r > band) {
-                drawPath(star(c, r, r * 0.48f, rot), if (k++ % 2 == 0) ink else ART)
-                r -= band
-            }
-        }
-        repeat(10) {
-            val c = Offset(w * (0.68f + random.nextFloat() * 0.32f), h * random.nextFloat())
-            val r = h * (0.025f + random.nextFloat() * 0.035f)
-            val rot = random.nextFloat() * 72f
-            drawPath(star(c, r * 1.35f, r * 0.65f, rot), ink)
-            drawPath(star(c, r, r * 0.45f, rot), ART)
+private fun DrawScope.drawStarField(ink: Color, frame: Size, opening: Boolean = false) {
+    val w = frame.width
+    val h = frame.height
+    drawRect(ink, Offset.Zero, frame)
+    fun burst(random: Random, left: Float, span: Float) {
+        val c = Offset(w * (left + random.nextFloat() * span), h * (random.nextFloat() * 1.15f - 0.08f))
+        val rot = random.nextFloat() * 72f
+        val band = h * (0.016f + random.nextFloat() * 0.01f)
+        var r = h * (0.14f + random.nextFloat() * 0.16f)
+        var k = 0
+        while (r > band) {
+            drawPath(star(c, r, r * 0.48f, rot), if (k++ % 2 == 0) ink else ART)
+            r -= band
         }
     }
-    drawPath(area, ink, style = Stroke(h * 0.006f))
+    if (opening) {
+        val extra = Random(23)
+        repeat(8) { burst(extra, 0.43f, 0.26f) }
+    }
+    val random = Random(11) // fixed seed: the same wallpaper every time
+    repeat(16) { burst(random, 0.66f, 0.36f) }
+    repeat(10) {
+        val c = Offset(w * (0.68f + random.nextFloat() * 0.32f), h * random.nextFloat())
+        val r = h * (0.025f + random.nextFloat() * 0.035f)
+        val rot = random.nextFloat() * 72f
+        drawPath(star(c, r * 1.35f, r * 0.65f, rot), ink)
+        drawPath(star(c, r, r * 0.45f, rot), ART)
+    }
 }
 
 /** Joker, hand over his face, at the art brightness. It cuts in on the opening's art frame. */
@@ -178,66 +216,38 @@ private const val HERO_X = 580f
 private const val HERO_Y = -14f
 
 /**
- * Stand-in for the game's opening flipbook (a white profile of Joker, a black figure sliding over
- * it, a smear frame and a flat two-tone hand), made from the art itself and timed like the game.
+ * The opening's flipbook: Joker's 3D menu model, rendered from the game files by tools/p5r/opening
+ * ([OpeningFrames]), white left of the star panel's edge and black over it, one image per frame
+ * until the art cuts in. On the hand-thrust frame the game also draws streaks the model lacks.
  */
 @Composable
-fun OpeningSilhouettes(state: MenuState, time: DoubleState, modifier: Modifier = Modifier) {
-    val art = ImageBitmap.imageResource(R.drawable.p5_camptop)
+fun OpeningSilhouettes(state: MenuState, time: DoubleState, palette: Palette, modifier: Modifier = Modifier) {
+    val assets = LocalContext.current.assets
+    val opening by produceState(OpeningFrames.NONE, assets) { value = withContext(Dispatchers.IO) { OpeningFrames.load(assets) } }
     Spacer(modifier.fillMaxSize().drawWithCache {
         val k = size.height / REF_H
-        val dst = IntSize((art.width * k).roundToInt(), (art.height * k).roundToInt())
-        val origin = IntOffset((HERO_X * k).roundToInt(), (HERO_Y * k).roundToInt())
-        val centre = Offset(origin.x + dst.width / 2f, origin.y + dst.height / 2f)
-        val foot = Offset(centre.x, (origin.y + dst.height).toFloat())
-        val white = ColorFilter.tint(ART, BlendMode.SrcIn)
-        val black = ColorFilter.tint(Color.Black, BlendMode.SrcIn)
-        val twoTone = ColorFilter.colorMatrix(ColorMatrix(THRESHOLD))
+        val white = ColorFilter.tint(ART)
+        val black = ColorFilter.tint(palette.ink)
         val streaks = SMEAR_STREAKS.map { s -> polygon(Offset(s[0] * k, s[1] * k), Offset(s[2] * k, s[3] * k), Offset(s[4] * k, s[5] * k), Offset(s[6] * k, s[7] * k)) }
         onDrawBehind {
             val n = gameFrame(time.doubleValue, state.openedAt)
-            if (n !in 0 until Opening.ART) return@onDrawBehind
-            fun silhouette(filter: ColorFilter, dx: Float, dy: Float, scale: Float = 1f, stretch: Float = 1f, degrees: Float = 0f) {
-                withTransform({
-                    translate(dx * k, dy * k)
-                    rotate(degrees, centre)
-                    scale(scale, scale, centre)
-                    scale(1f, stretch, foot)
-                }) { drawImage(art, dstOffset = origin, dstSize = dst, colorFilter = filter) }
+            val frame = opening.frames.getOrNull(n) ?: return@onDrawBehind
+            val stretch = opening.scale * k
+            fun draw(mask: OpeningFrames.Mask?, tint: ColorFilter) {
+                if (mask == null) return
+                drawImage(
+                    mask.image,
+                    dstOffset = IntOffset((mask.x * k).roundToInt(), (mask.y * k).roundToInt()),
+                    dstSize = IntSize((mask.image.width * stretch).roundToInt(), (mask.image.height * stretch).roundToInt()),
+                    colorFilter = tint,
+                )
             }
-            when {
-                // White profile, breathing a little from frame to frame.
-                n <= 8 -> {
-                    silhouette(white, -150f, 30f, if (n % 2 == 0) 0.912f else 0.888f)
-                    if (n >= 6) silhouette(black, BLACK_SLIDE[n - 6], 0f)
-                }
-                // The black figure in front, a white rim left of it.
-                n <= 15 -> {
-                    silhouette(white, -14f, 0f)
-                    silhouette(black, 0f, 0f, stretch = if (n == 15) 1.15f else 1f)
-                    if (n == 15) for (s in streaks) drawPath(s, Color.Black)
-                }
-                // The flat two-tone hand settling from 1.032x; the overlay dims its white to the art level.
-                else -> {
-                    val settle = n == 16
-                    val dx = if (settle) -6f else 0f
-                    val dy = if (settle) -7f else 0f
-                    val scale = if (settle) 1.032f else 1.013f
-                    val degrees = if (settle) -0.5f else -0.8f
-                    silhouette(twoTone, dx, dy, scale, degrees = degrees)
-                    withTransform({
-                        translate(dx * k, dy * k)
-                        rotate(degrees, centre)
-                        scale(scale, scale, centre)
-                    }) { drawImage(art, dstOffset = origin, dstSize = dst, colorFilter = black, alpha = 0.19f) }
-                }
-            }
+            draw(frame.black, black)
+            draw(frame.white, white)
+            if (n == Opening.SMEAR) for (s in streaks) drawPath(s, palette.ink)
         }
     })
 }
-
-/** The black figure's slide in from the right over frames 6-8 (frame px). */
-private val BLACK_SLIDE = floatArrayOf(420f, 160f, 50f)
 
 /** Smear frame: streaks shooting up from Joker's head over the plates (four quads, frame px). */
 private val SMEAR_STREAKS = arrayOf(
@@ -245,14 +255,6 @@ private val SMEAR_STREAKS = arrayOf(
     floatArrayOf(1180f, 330f, 1215f, 320f, 1420f, 0f, 1370f, 0f),
     floatArrayOf(1250f, 340f, 1290f, 330f, 1560f, 0f, 1500f, 0f),
     floatArrayOf(1320f, 360f, 1350f, 352f, 1700f, 40f, 1650f, 30f),
-)
-
-/** Luminance threshold: light pixels white, everything else (outlines, glove, hair) black. */
-private val THRESHOLD = floatArrayOf(
-    2.39f, 4.70f, 0.91f, 0f, -1024f,
-    2.39f, 4.70f, 0.91f, 0f, -1024f,
-    2.39f, 4.70f, 0.91f, 0f, -1024f,
-    0f, 0f, 0f, 1f, 0f,
 )
 
 /**

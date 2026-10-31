@@ -18,8 +18,27 @@ internal const val GAME_FPS = 60.0
 internal fun gameFrame(time: Double, since: Double): Int = if (time < since) -1 else floor((time - since) * GAME_FPS).toInt()
 
 internal object Opening {
-    /** Joker's final art cuts in (before it: silhouettes). */
+    /** Joker's final art cuts in (before it: silhouettes of his 3D model). */
     const val ART = 18
+
+    /** The hand-thrust frame: the game adds streaks the model has no geometry for. */
+    const val SMEAR = 15
+
+    /**
+     * The star panel's left edge while the silhouettes play, x = a * y + b in frame px, as (a, b)
+     * per frame: still for nine frames, then it swings round a point near (1060, 300) until the
+     * art cuts in. The silhouette is white left of it and black right of it.
+     */
+    private val PANEL_EDGE = floatArrayOf(
+        0.5776f, 883.5f, 0.5776f, 883.5f, 0.5776f, 883.5f, 0.5776f, 883.5f, 0.5776f, 883.5f, 0.5776f, 883.5f,
+        0.5776f, 883.5f, 0.5776f, 883.5f, 0.5776f, 883.5f, 0.3597f, 950.8f, 0.1986f, 998.5f, 0.0613f, 1037.8f,
+        -0.0293f, 1063.1f, -0.1181f, 1090.3f, -0.1889f, 1110.8f, -0.2393f, 1126.3f, -0.2788f, 1138.4f, -0.3029f, 1146.2f,
+    )
+
+    /** [PANEL_EDGE] of frame [n], held at its first frame before the opening starts. */
+    fun panelEdgeSlope(n: Int) = PANEL_EDGE[2 * n.coerceIn(0, ART - 1)]
+
+    fun panelEdgeTop(n: Int) = PANEL_EDGE[2 * n.coerceIn(0, ART - 1) + 1]
 
     /** The command list appears. */
     const val LIST = 19

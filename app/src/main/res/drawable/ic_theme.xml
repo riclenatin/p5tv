@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Domino mask: the "Оформление" (theme) shortcut. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M1,7 L8,9.5 L12,8.8 L16,9.5 L23,7 L22,13 L17,16 L13.5,14.5 L12,15.5 L10.5,14.5 L7,16 L2,13 Z M5,11 L9.5,11.5 L8.5,13.5 L5.8,13 Z M18.9,11 L14.5,11.5 L15.5,13.5 L18.2,13 Z" />
+</vector>

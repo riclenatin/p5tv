@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Главная</string>
+    <string name="inputs">Источники</string>
+    <string name="inputs_description">HDMI, эфир и приставки</string>
+    <string name="settings">Настройки</string>
+    <string name="settings_description">Параметры телевизора</string>
+    <string name="theme_entry">Оформление</string>
+    <string name="theme_description">Сейчас: %1$s · OK — %2$s</string>
+    <string name="theme_joker">Джокер</string>
+    <string name="theme_collage">Коллаж</string>
+    <string name="move_up">Поднять выше</string>
+    <string name="move_down">Опустить ниже</string>
+    <string name="app_info">О приложении</string>
+    <string name="launch_failed">Не удалось открыть</string>
+    <string name="hint_ok">OK</string>
+    <string name="hint_open">Открыть</string>
+    <string name="hint_hold">Удерж. OK</string>
+    <string name="hint_menu">Меню</string>
+    <string name="part_morning">Утро</string>
+    <string name="part_day">День</string>
+    <string name="part_evening">Вечер</string>
+    <string name="part_night">Ночь</string>
+    <string name="bond_rank">%1$s · ранг %2$d</string>
+    <string name="bond_time">%1$d ч %2$d мин за %3$d дней</string>
+    <string name="bond_new">Ещё не знакомы</string>
+    <string name="rank_up">Ранг повышен!</string>
+    <string name="rank_up_detail">%1$s · %2$d → %3$d</string>
+
+    <string-array name="arcana">
+        <item>Шут</item>
+        <item>Маг</item>
+        <item>Жрица</item>
+        <item>Императрица</item>
+        <item>Император</item>
+        <item>Иерофант</item>
+        <item>Влюблённые</item>
+        <item>Колесница</item>
+        <item>Справедливость</item>
+        <item>Отшельник</item>
+        <item>Фортуна</item>
+        <item>Сила</item>
+        <item>Повешенный</item>
+        <item>Смерть</item>
+        <item>Умеренность</item>
+        <item>Дьявол</item>
+        <item>Башня</item>
+        <item>Звезда</item>
+        <item>Луна</item>
+        <item>Солнце</item>
+        <item>Суд</item>
+        <item>Мир</item>
+    </string-array>
+</resources>

@@ -1,0 +1,22 @@
+# Gradle / Kotlin / Android build output
+.gradle/
+.kotlin/
+build/
+*.apk
+*.aab
+
+# Per-machine settings: SDK path, weather location, TV address (see README)
+local.properties
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+
+# Python
+__pycache__/
+
+# Sprites, sounds and renders extracted from your own Persona 5 Royal install by tools/p5r.
+# They belong to ATLUS/SEGA: regenerate them locally, never commit them.
+app/src/main/res/drawable-nodpi/p5_*
+app/src/main/res/raw/p5_*

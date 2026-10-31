@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Window background matches the Compose backdrop so a cold start shows red, not a black flash. -->
+    <style name="Theme.Home" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/p5_red</item>
+        <item name="android:windowShowWallpaper">false</item>
+    </style>
+
+    <color name="p5_red">#FFE3001B</color>
+</resources>

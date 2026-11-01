@@ -203,14 +203,16 @@ fun LauncherScreen(
                 CampStickers(palette, state, time)
                 CommandTitle(state, time)
                 CommandList(entries, state, time, palette)
-                CommandCaption(
-                    text = captionFor(selected, bond, arcana),
-                    rank = bond?.rank ?: 0,
-                    state = state,
-                    time = time,
-                    palette = palette,
-                    modifier = Modifier.offset(x = 568.dp, y = 448.dp),
-                )
+                captionFor(selected, bond, arcana)?.let { caption ->
+                    CommandCaption(
+                        text = caption,
+                        rank = bond?.rank ?: 0,
+                        state = state,
+                        time = time,
+                        palette = palette,
+                        modifier = Modifier.offset(x = 568.dp, y = 448.dp),
+                    )
+                }
                 val hud = Modifier.graphicsLayer { alpha = Opening.hudAlpha(gameFrame(time.doubleValue, state.openedAt)) }
                 PhantomClock(palette, hud.offset(x = 310.dp, y = 428.dp))
                 PhantomChips(weather, palette, hud.offset(x = 24.dp, y = 18.dp))
@@ -239,17 +241,15 @@ fun LauncherScreen(
     }
 }
 
-/** What the line under "COMMAND" says about the selected entry. */
+/** What the line under "COMMAND" says about the selected entry; nothing for an app without a bond rank. */
 @Composable
-private fun captionFor(entry: Entry?, bond: Bond?, arcana: Array<String>): String = when (entry) {
-    is AppEntry -> if (bond != null && bond.rank > 0) {
-        stringResource(R.string.bond_rank, arcana[bond.arcana], bond.rank) + " · " +
-            stringResource(R.string.bond_time, (bond.minutes / 60).toInt(), (bond.minutes % 60).toInt(), BondRepository.WINDOW_DAYS)
-    } else {
-        stringResource(R.string.bond_new)
+private fun captionFor(entry: Entry?, bond: Bond?, arcana: Array<String>): String? = when (entry) {
+    is AppEntry -> bond?.takeIf { it.rank > 0 }?.let {
+        stringResource(R.string.bond_rank, arcana[it.arcana], it.rank) + " · " +
+            stringResource(R.string.bond_time, (it.minutes / 60).toInt(), (it.minutes % 60).toInt(), BondRepository.WINDOW_DAYS)
     }
     is ShortcutEntry -> entry.description
-    null -> ""
+    null -> null
 }
 
 /** White flash over the whole screen when the theme changes. */

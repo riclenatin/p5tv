@@ -45,7 +45,7 @@ import java.time.format.TextStyle as DateTextStyle
 
 /** Current time, refreshed on every minute boundary. */
 @Composable
-private fun rememberNow(): LocalDateTime {
+internal fun rememberNow(): LocalDateTime {
     val now by produceState(LocalDateTime.now()) {
         while (true) {
             value = LocalDateTime.now()
@@ -110,26 +110,6 @@ fun DateBadge(weather: Weather?, palette: Palette, time: DoubleState, modifier: 
 fun PhantomClock(palette: Palette, modifier: Modifier = Modifier) {
     val now = rememberNow()
     MoneyDigits("%02d:%02d".format(now.hour, now.minute), palette, modifier.rotate(-3f))
-}
-
-/** Phantom layout, top-left corner (empty in the game): date, part of day and weather chips. */
-@Composable
-fun PhantomChips(weather: Weather?, palette: Palette, time: DoubleState, modifier: Modifier = Modifier) {
-    val now = rememberNow()
-    Row(modifier.rotate(-4f), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.background(palette.paper, SkewShape(0.3f)).padding(horizontal = 14.dp, vertical = 1.dp)) {
-            BasicText(
-                "%02d.%02d %s".format(now.dayOfMonth, now.monthValue, now.weekday()),
-                style = TextStyle(fontFamily = Fonts.russo, fontSize = 18.sp, color = palette.ink),
-            )
-        }
-        Spacer(Modifier.width(6.dp))
-        PartOfDayChip(partOfDay(now), palette)
-        if (weather != null) {
-            Spacer(Modifier.width(6.dp))
-            WeatherChip(weather, palette, time)
-        }
-    }
 }
 
 @Composable
@@ -202,14 +182,14 @@ private val WEATHER_PLATE = 40.dp
  * Each icon frame is held 18 game frames (0.3 s at 60 fps), looping 1-2-3, as measured on 60 fps
  * footage of the game's HUD.
  */
-private const val WEATHER_FRAME_SECONDS = 0.3
+internal const val WEATHER_FRAME_SECONDS = 0.3
 
-/** The game's four kinds of weather, each a looping three-frame icon. */
-private enum class GameWeather(val frames: IntArray) {
-    Sunny(intArrayOf(R.drawable.p5_weather_sunny_1, R.drawable.p5_weather_sunny_2, R.drawable.p5_weather_sunny_3)),
-    Cloudy(intArrayOf(R.drawable.p5_weather_cloudy_1, R.drawable.p5_weather_cloudy_2, R.drawable.p5_weather_cloudy_3)),
-    Rain(intArrayOf(R.drawable.p5_weather_rain_1, R.drawable.p5_weather_rain_2, R.drawable.p5_weather_rain_3)),
-    Snow(intArrayOf(R.drawable.p5_weather_snow_1, R.drawable.p5_weather_snow_2, R.drawable.p5_weather_snow_3)),
+/** The game's four kinds of weather, each a looping three-frame icon; [asset] names its sprites. */
+internal enum class GameWeather(val asset: String, val frames: IntArray) {
+    Sunny("sunny", intArrayOf(R.drawable.p5_weather_sunny_1, R.drawable.p5_weather_sunny_2, R.drawable.p5_weather_sunny_3)),
+    Cloudy("cloudy", intArrayOf(R.drawable.p5_weather_cloudy_1, R.drawable.p5_weather_cloudy_2, R.drawable.p5_weather_cloudy_3)),
+    Rain("rain", intArrayOf(R.drawable.p5_weather_rain_1, R.drawable.p5_weather_rain_2, R.drawable.p5_weather_rain_3)),
+    Snow("snow", intArrayOf(R.drawable.p5_weather_snow_1, R.drawable.p5_weather_snow_2, R.drawable.p5_weather_snow_3)),
     ;
 
     companion object {

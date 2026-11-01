@@ -215,7 +215,7 @@ fun LauncherScreen(
                 }
                 val hud = Modifier.graphicsLayer { alpha = Opening.hudAlpha(gameFrame(time.doubleValue, state.openedAt)) }
                 PhantomClock(palette, hud.offset(x = 310.dp, y = 428.dp))
-                PhantomChips(weather, palette, time, hud.offset(x = 24.dp, y = 18.dp))
+                GameDate(weather, palette, time, hud)
             }
         }
         // Button hints, bottom-right as in the game ("○ Close ✕ Confirm"); the command menu fades them in.

@@ -1,7 +1,8 @@
-"""Regenerates the Persona 5 Royal camp-menu sprites (app/src/main/res/drawable-nodpi) and sounds
-(app/src/main/res/raw) from the user's own P5R install (Steam). Sprites are pre-scaled to their
-on-screen size in a 1920x1080 frame; the scales were measured on an in-game screenshot by template
-matching these same sprites.
+"""Regenerates the Persona 5 Royal camp-menu sprites (app/src/main/res/drawable-nodpi), sounds
+(app/src/main/res/raw) and the field date display (app/src/main/assets/p5_date) from the user's own
+P5R install (Steam). Camp-menu sprites are pre-scaled to their on-screen size in a 1920x1080 frame;
+the scales were measured on an in-game screenshot by template matching these same sprites. The date
+display keeps the game's own scale.
 
     python3 tools/p5r/make_assets.py [P5R install dir]
 
@@ -9,13 +10,15 @@ Default install dir: ~/.local/share/Steam/steamapps/common/P5R. Needs Pillow (de
 Sources:
     EN.CPK      INIT/P5CAMP_00SPD.SPD           camp-menu sprites: COMMAND, LIKE THAT!, Dont Look at,
                                                 MENU: Main, big number digits, money digits (the clock)
-    EN.CPK      CALENDAR/P5_FIELD_DAY.SPD       the field date HUD's weather icons and their plate
+    EN.CPK      CALENDAR/P5_FIELD_DAY.SPD       the field date HUD: date, time of day, weather icons
+                                                and their plate, special-weather banners
     BASE.CPK    CAMP/HEROTEX/P5_CAMPTOP_2D.DDS  Joker, hand over his face
     SOUND_E.CPK SOUND/SYSTEM.ACB/.AWB           cues "cursor" (selection change), "camp_open_field"
 Sprite ids were picked from `spd.py` dumps of those packs, cue names from `sfx.py list`.
 """
 import io
 import os
+import shutil
 import sys
 
 from PIL import Image
@@ -81,14 +84,42 @@ for d, (digit, rim) in enumerate(zip(CASH, CASH_RIM)):
     save(camp[digit].crop((x0, top, x1, bottom)), f"p5_money_digit_{d}", 0.7)
     save(camp[rim].crop((x0, top, x1, bottom)), f"p5_money_rim_{d}", 0.7)
 
-# Weather: the field date HUD's icons, white silhouettes with three animation frames each ("天気
-# 晴れ1".."雪3"), and the tilted plate they sit on ("天気土台"), drawn 80 px tall in the corner chips.
+# The field date HUD (EN.CPK CALENDAR/P5_FIELD_DAY.SPD), white silhouettes the app tints. Collage
+# theme's weather chip: the weather icons ("天気 晴れ1".."雪3", three animation frames each) and their
+# tilted plate ("天気土台"), 80 px tall.
 WEATHER = {"sunny": (97, 109, 110), "cloudy": (99, 113, 114), "rain": (98, 111, 112), "snow": (100, 115, 116)}
-day = sprites(en.read("CALENDAR/P5_FIELD_DAY.SPD"), {96, *(sid for ids in WEATHER.values() for sid in ids)})
+# Joker theme: the whole date display, at the game's own scale (half the 4K texture), each sprite on
+# its full canvas so the app can place it by its centre: month ("N月": white base, black base,
+# numeral), day digits ("日付数字N"), weekdays ("X曜": base, black base, outline, letters), time of
+# day ("時間帯": base, text) and the special-weather banners ("特殊天気").
+MONTHS = range(1, 13)
+WEEKDAYS = range(7)  # Sunday first, as the game orders them
+SLOTS = range(8)  # Early Morning, Morning, Daytime, Lunchtime, Afternoon, After School, Evening, Late Night
+BANNERS = {"typhoon": 102, "torrential_rain": 105, "heat_wave": 106, "hot_night": 117, "cold_wave": 300}
+DATE_IDS = {
+    **{f"month_{m}_{part}": base + m for m in MONTHS for part, base in (("base", 0), ("black", 12), ("numeral", 24))},
+    **{f"digit_{d}_{part}": base + d for d in range(10) for part, base in (("base", 37), ("black", 47), ("numeral", 57))},
+    **{f"weekday_{k}_{part}": base + k for k in WEEKDAYS
+       for part, base in (("base", 67), ("black", 74), ("outline", 81), ("letters", 287))},
+    **{f"time_{s}_{part}": base + s for s in SLOTS for part, base in (("base", 88), ("text", 125))},
+    "weather_plate": 96,
+    **{f"weather_{kind}_{n}": sid for kind, ids in WEATHER.items() for n, sid in enumerate(ids, 1)},
+    **{f"banner_{name}": sid for name, sid in BANNERS.items()},
+}
+day = sprites(en.read("CALENDAR/P5_FIELD_DAY.SPD"), set(DATE_IDS.values()))
 save(day[96], "p5_weather_plate", 80 / 300)
 for kind, ids in WEATHER.items():
     for n, sid in enumerate(ids, 1):
         save(day[sid], f"p5_weather_{kind}_{n}", 80 / 300)
+
+DATE = os.path.normpath(os.path.join(RES, "../assets/p5_date"))
+shutil.rmtree(DATE, ignore_errors=True)  # wholly generated here: no stale sprites from older runs
+os.makedirs(DATE)
+for name, sid in DATE_IDS.items():
+    img = day[sid].resize((round(day[sid].width / 2), round(day[sid].height / 2)), Image.LANCZOS)
+    # Banners are coloured art; everything else is a white mask, stored as grey + alpha.
+    (img if name.startswith("banner_") else img.convert("LA")).save(f"{DATE}/{name}.png", optimize=True)
+print("p5_date", len(DATE_IDS), "sprites")
 
 bank = sfx.SystemBank(f"{GAME}/CPK/SOUND_E.CPK")
 cue = {name: index for index, name in bank.names.items()}

@@ -26,9 +26,11 @@ cursor animations were timed frame by frame on 60 fps footage of the game.
 - **Confidant ranks.** Each app gets an arcana and a rank from 0 to 10, earned by watch time
   over the last 30 days (usage stats). A rank-up shows a «Ранг повышен!» overlay, and once an
   app has a rank, the line under COMMAND shows its arcana and rank.
-- **Clock, date and weather.** The time is drawn in the money counter's digits. The date, part
-  of day and the current weather (Open-Meteo, no API key) sit in the top-left corner; the
-  weather uses the game's own animated icons from its field date display.
+- **Clock, date and weather.** The time is drawn in the money counter's digits. The top-left
+  corner is the game's field date display, rebuilt from its sprites: month, day, weekday (cyan
+  on Saturdays, red on Sundays), time of day and the animated weather icon, with the temperature
+  on a tag. The current weather (Open-Meteo, no API key) also raises the game's special-weather
+  banners: Typhoon Warning, Torrential Rain, Cold Wave, Heat Wave and Hot Night.
 - **Two themes.** Joker (the camp menu) and Collage (an earlier, freer Persona-style design).
   Switch with the «Оформление» entry at the end of the list.
 - **Built for weak TVs.** Static layers are prerendered into bitmaps. Full frame rate runs only
@@ -132,18 +134,19 @@ app/src/main/kotlin/com/chroniac/tvhome/
 ├── HomeActivity.kt       app list, shortcuts, theme choice, lifecycle
 ├── Entries.kt            installed leanback apps and their saved order
 ├── Bonds.kt              confidant ranks from UsageStatsManager
-├── Weather.kt            Open-Meteo current weather, cached
+├── Weather.kt            Open-Meteo current weather and gusts, cached
 ├── MenuSounds.kt         the game's cursor and menu-open sounds (SoundPool)
 └── ui/
     ├── LauncherScreen.kt frame clock, idle throttling, remote keys
     ├── Phantom.kt        the Joker theme: the camp menu
     ├── Opening.kt        opening and cursor timings measured on the footage, frame by frame
     ├── OpeningFrames.kt  the opening's silhouettes, loaded as alpha masks
+    ├── GameDate.kt       the field date display: sprites at their measured places, banners
     ├── Ransom.kt         ransom-note lettering
     ├── Motion.kt         selection state and easing on a frame clock
     └── …                 Collage theme, app menu, rank-up overlay, date badge
 tools/p5r/
-├── make_assets.py        writes res/drawable-nodpi/p5_* and res/raw/p5_* from the game
+├── make_assets.py        writes res/drawable-nodpi/p5_*, res/raw/p5_* and assets/p5_date from the game
 ├── cpk.py                CRI CPK archives: TOC, CRILAYLA, P5R's per-file XOR
 ├── spd.py                Atlus SPD sprite dictionaries (lists sprite ids when run directly)
 ├── sfx.py                the SYSTEM.ACB/AWB sound bank: CRI ADX with P5R's key
@@ -158,6 +161,10 @@ animation 0 of its GAP pack, drawn flat: white left of the star panel's edge, bl
 game files hold no camera for this shot, so the cameras in `params.json` were fitted to the
 footage frame by frame. The app keeps the 36 masks as half-resolution ALPHA_8 bitmaps, about
 5 MB.
+
+The date display comes from the game's field HUD (`CALENDAR/P5_FIELD_DAY.SPD`). Each sprite sits
+at the centre and tilt measured on 60 fps footage of the game, the layers go down in the game's
+order, and its black parts let a quarter of what is behind them show through, as in the game.
 
 All motion runs on one frame clock instead of Compose animations. Slow TVs are often sped up by
 setting the animator duration scale to 0 (the author's is), and that would make every Compose

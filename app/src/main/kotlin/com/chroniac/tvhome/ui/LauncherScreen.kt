@@ -191,7 +191,7 @@ fun LauncherScreen(
                     modifier = Modifier.fillMaxSize().padding(start = 70.dp, top = 205.dp),
                 )
                 MenuList(entries, state, time, palette, anchorY = 0.44f, Modifier.fillMaxSize().padding(start = 480.dp))
-                DateBadge(weather, palette, Modifier.padding(start = 40.dp, top = 24.dp))
+                DateBadge(weather, palette, time, Modifier.padding(start = 40.dp, top = 24.dp))
             }
             ThemeLayout.Phantom -> {
                 // Layer order as in the game's opening: the silhouettes cover the big number, the
@@ -215,7 +215,7 @@ fun LauncherScreen(
                 }
                 val hud = Modifier.graphicsLayer { alpha = Opening.hudAlpha(gameFrame(time.doubleValue, state.openedAt)) }
                 PhantomClock(palette, hud.offset(x = 310.dp, y = 428.dp))
-                PhantomChips(weather, palette, hud.offset(x = 24.dp, y = 18.dp))
+                PhantomChips(weather, palette, time, hud.offset(x = 24.dp, y = 18.dp))
             }
         }
         // Button hints, bottom-right as in the game ("○ Close ✕ Confirm"); the command menu fades them in.

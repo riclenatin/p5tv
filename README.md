@@ -24,10 +24,11 @@ cursor animations were timed frame by frame on 60 fps footage of the game.
   the art cutting in with an impact shake and the words sliding in. Changing the selection pops
   the new command and plays the game's cursor sound.
 - **Confidant ranks.** Each app gets an arcana and a rank from 0 to 10, earned by watch time
-  over the last 30 days (usage stats). A rank-up shows a «Ранг повышен!» overlay, and the line
-  under COMMAND shows the selected app's arcana and rank.
+  over the last 30 days (usage stats). A rank-up shows a «Ранг повышен!» overlay, and once an
+  app has a rank, the line under COMMAND shows its arcana and rank.
 - **Clock, date and weather.** The time is drawn in the money counter's digits. The date, part
-  of day and the current weather (Open-Meteo, no API key) sit in the top-left corner.
+  of day and the current weather (Open-Meteo, no API key) sit in the top-left corner; the
+  weather uses the game's own animated icons from its field date display.
 - **Two themes.** Joker (the camp menu) and Collage (an earlier, freer Persona-style design).
   Switch with the «Оформление» entry at the end of the list.
 - **Built for weak TVs.** Static layers are prerendered into bitmaps. Full frame rate runs only

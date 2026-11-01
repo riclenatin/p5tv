@@ -9,6 +9,7 @@ Default install dir: ~/.local/share/Steam/steamapps/common/P5R. Needs Pillow (de
 Sources:
     EN.CPK      INIT/P5CAMP_00SPD.SPD           camp-menu sprites: COMMAND, LIKE THAT!, Dont Look at,
                                                 MENU: Main, big number digits, money digits (the clock)
+    EN.CPK      CALENDAR/P5_FIELD_DAY.SPD       the field date HUD's weather icons and their plate
     BASE.CPK    CAMP/HEROTEX/P5_CAMPTOP_2D.DDS  Joker, hand over his face
     SOUND_E.CPK SOUND/SYSTEM.ACB/.AWB           cues "cursor" (selection change), "camp_open_field"
 Sprite ids were picked from `spd.py` dumps of those packs, cue names from `sfx.py list`.
@@ -79,6 +80,15 @@ for d, (digit, rim) in enumerate(zip(CASH, CASH_RIM)):
     x0, _, x1, _ = camp[rim].getchannel("A").getbbox()
     save(camp[digit].crop((x0, top, x1, bottom)), f"p5_money_digit_{d}", 0.7)
     save(camp[rim].crop((x0, top, x1, bottom)), f"p5_money_rim_{d}", 0.7)
+
+# Weather: the field date HUD's icons, white silhouettes with three animation frames each ("天気
+# 晴れ1".."雪3"), and the tilted plate they sit on ("天気土台"), drawn 80 px tall in the corner chips.
+WEATHER = {"sunny": (97, 109, 110), "cloudy": (99, 113, 114), "rain": (98, 111, 112), "snow": (100, 115, 116)}
+day = sprites(en.read("CALENDAR/P5_FIELD_DAY.SPD"), {96, *(sid for ids in WEATHER.values() for sid in ids)})
+save(day[96], "p5_weather_plate", 80 / 300)
+for kind, ids in WEATHER.items():
+    for n, sid in enumerate(ids, 1):
+        save(day[sid], f"p5_weather_{kind}_{n}", 80 / 300)
 
 bank = sfx.SystemBank(f"{GAME}/CPK/SOUND_E.CPK")
 cue = {name: index for index, name in bank.names.items()}

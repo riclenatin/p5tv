@@ -11,31 +11,36 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DoubleState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.chroniac.tvhome.R
 import com.chroniac.tvhome.Weather
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.util.Locale
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
+import kotlin.math.roundToInt
 import java.time.format.TextStyle as DateTextStyle
 
 /** Current time, refreshed on every minute boundary. */
@@ -65,7 +70,7 @@ private fun LocalDateTime.weekday(): String =
 
 /** Persona-style calendar (Collage theme): big day/month, weekday tag, part of day, time, weather. */
 @Composable
-fun DateBadge(weather: Weather?, palette: Palette, modifier: Modifier = Modifier) {
+fun DateBadge(weather: Weather?, palette: Palette, time: DoubleState, modifier: Modifier = Modifier) {
     val now = rememberNow()
     Column(modifier.rotate(-7f)) {
         Row(verticalAlignment = Alignment.Bottom) {
@@ -94,7 +99,7 @@ fun DateBadge(weather: Weather?, palette: Palette, modifier: Modifier = Modifier
             }
             if (weather != null) {
                 Spacer(Modifier.width(8.dp))
-                WeatherChip(weather, palette)
+                WeatherChip(weather, palette, time)
             }
         }
     }
@@ -109,7 +114,7 @@ fun PhantomClock(palette: Palette, modifier: Modifier = Modifier) {
 
 /** Phantom layout, top-left corner (empty in the game): date, part of day and weather chips. */
 @Composable
-fun PhantomChips(weather: Weather?, palette: Palette, modifier: Modifier = Modifier) {
+fun PhantomChips(weather: Weather?, palette: Palette, time: DoubleState, modifier: Modifier = Modifier) {
     val now = rememberNow()
     Row(modifier.rotate(-4f), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.background(palette.paper, SkewShape(0.3f)).padding(horizontal = 14.dp, vertical = 1.dp)) {
@@ -122,7 +127,7 @@ fun PhantomChips(weather: Weather?, palette: Palette, modifier: Modifier = Modif
         PartOfDayChip(partOfDay(now), palette)
         if (weather != null) {
             Spacer(Modifier.width(6.dp))
-            WeatherChip(weather, palette)
+            WeatherChip(weather, palette, time)
         }
     }
 }
@@ -134,18 +139,22 @@ private fun PartOfDayChip(text: String, palette: Palette) {
     }
 }
 
+/** The game's weather icon on its plate, overlapping a black tag with the temperature. */
 @Composable
-private fun WeatherChip(weather: Weather, palette: Palette) {
-    Row(
-        Modifier.background(palette.ink, SkewShape(0.3f)).padding(horizontal = 16.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        WeatherIcon(weather, palette.paper, palette.accent, palette.ink, Modifier.size(26.dp))
-        Spacer(Modifier.width(6.dp))
-        BasicText(
-            (if (weather.temperature > 0) "+" else "") + "${weather.temperature}°",
-            style = TextStyle(fontFamily = Fonts.dela, fontSize = 20.sp, color = palette.paper),
-        )
+private fun WeatherChip(weather: Weather, palette: Palette, time: DoubleState) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        WeatherIcon(GameWeather.of(weather.code), palette, time, Modifier.zIndex(1f))
+        Box(
+            Modifier
+                .offset(x = (-10).dp)
+                .background(palette.ink, SkewShape(0.3f))
+                .padding(start = 20.dp, end = 16.dp, top = 2.dp, bottom = 2.dp)
+        ) {
+            BasicText(
+                (if (weather.temperature > 0) "+" else "") + "${weather.temperature}°",
+                style = TextStyle(fontFamily = Fonts.dela, fontSize = 20.sp, color = palette.paper),
+            )
+        }
     }
 }
 
@@ -159,81 +168,61 @@ private fun OutlinedText(text: String, size: TextUnit, palette: Palette, modifie
     }
 }
 
-/** Flat icons in the P5 calendar spirit; WMO codes grouped the way Open-Meteo documents them. */
+/**
+ * The weather icon of the game's field date HUD (sprites from tools/p5r/make_assets.py). As in the
+ * game, the icon is cut out of its tilted paper plate, so whatever is behind shows through it, and
+ * it loops through its three frames; both are drawn at one scale, the icon centred on the plate.
+ */
 @Composable
-private fun WeatherIcon(weather: Weather, color: Color, accent: Color, background: Color, modifier: Modifier) {
-    Box(modifier.drawBehind {
-        when (weather.code) {
-            0, 1 -> if (weather.isDay) sun(accent) else moon(color, background)
-            2 -> { sun(accent, Offset(-0.18f, -0.18f), 0.7f); cloud(color) }
-            3 -> cloud(color)
-            45, 48 -> fog(color)
-            in 51..67, in 80..82 -> { cloud(color, lift = 0.18f); rain(color) }
-            in 71..77, 85, 86 -> { cloud(color, lift = 0.18f); snow(color) }
-            in 95..99 -> { cloud(color, lift = 0.18f); bolt(accent) }
-            else -> cloud(color)
-        }
-    })
-}
-
-private fun DrawScope.sun(color: Color, shift: Offset = Offset.Zero, scale: Float = 1f) {
-    val c = center + Offset(shift.x * size.width, shift.y * size.height)
-    val r = size.minDimension * 0.22f * scale
-    drawCircle(color, r, c)
-    val rayWidth = size.minDimension * 0.08f
-    for (k in 0 until 8) {
-        val a = (k * PI / 4).toFloat()
-        val d = Offset(cos(a), sin(a))
-        drawLine(color, c + d * (r * 1.45f), c + d * (r * 2.1f), rayWidth, StrokeCap.Round)
-    }
-}
-
-/** Crescent: a disc with an offset disc in the plate colour bitten out of it. */
-private fun DrawScope.moon(color: Color, background: Color) {
-    val r = size.minDimension * 0.36f
-    drawCircle(color, r, center)
-    drawCircle(background, r * 0.86f, center + Offset(r * 0.45f, -r * 0.3f))
-}
-
-private fun DrawScope.cloud(color: Color, lift: Float = 0f) {
-    val u = size.minDimension
-    val base = center + Offset(0f, -lift * u + u * 0.08f)
-    drawCircle(color, u * 0.20f, base + Offset(-u * 0.18f, u * 0.04f))
-    drawCircle(color, u * 0.26f, base + Offset(u * 0.02f, -u * 0.06f))
-    drawCircle(color, u * 0.18f, base + Offset(u * 0.24f, u * 0.06f))
-    drawRect(color, topLeft = base + Offset(-u * 0.36f, u * 0.04f), size = androidx.compose.ui.geometry.Size(u * 0.78f, u * 0.2f))
-}
-
-private fun DrawScope.rain(color: Color) {
-    val u = size.minDimension
-    for (k in -1..1) {
-        val x = center.x + k * u * 0.24f
-        drawLine(color, Offset(x + u * 0.06f, center.y + u * 0.24f), Offset(x - u * 0.04f, center.y + u * 0.46f), u * 0.07f, StrokeCap.Round)
-    }
-}
-
-private fun DrawScope.snow(color: Color) {
-    val u = size.minDimension
-    for (k in -1..1) drawCircle(color, u * 0.06f, Offset(center.x + k * u * 0.24f, center.y + u * 0.36f + (k % 2) * u * 0.06f))
-}
-
-private fun DrawScope.bolt(color: Color) {
-    val u = size.minDimension
-    drawPath(
-        polygon(
-            Offset(center.x + u * 0.06f, center.y + u * 0.12f),
-            Offset(center.x - u * 0.14f, center.y + u * 0.36f),
-            Offset(center.x + u * 0.02f, center.y + u * 0.34f),
-            Offset(center.x - u * 0.08f, center.y + u * 0.52f),
-        ),
-        color,
+private fun WeatherIcon(weather: GameWeather, palette: Palette, time: DoubleState, modifier: Modifier = Modifier) {
+    val plate = ImageBitmap.imageResource(R.drawable.p5_weather_plate)
+    val frames = weather.frames.map { ImageBitmap.imageResource(it) }
+    val paper = remember(palette) { ColorFilter.tint(palette.paper) }
+    Spacer(
+        modifier
+            .size(WEATHER_PLATE * plate.width / plate.height, WEATHER_PLATE)
+            // Its own layer, so the cut-out clears only the plate.
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            .drawBehind {
+                val s = size.height / plate.height
+                drawImage(plate, dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()), colorFilter = paper)
+                val icon = frames[(time.doubleValue / WEATHER_FRAME_SECONDS).toInt().mod(frames.size)]
+                val w = (icon.width * s).roundToInt()
+                val h = (icon.height * s).roundToInt()
+                val offset = IntOffset(((size.width - w) / 2).roundToInt(), ((size.height - h) / 2).roundToInt())
+                drawImage(icon, dstOffset = offset, dstSize = IntSize(w, h), blendMode = BlendMode.DstOut)
+            }
     )
 }
 
-private fun DrawScope.fog(color: Color) {
-    val u = size.minDimension
-    for (k in 0..2) {
-        val y = center.y - u * 0.22f + k * u * 0.22f
-        drawLine(color, Offset(center.x - u * 0.38f + k * u * 0.06f, y), Offset(center.x + u * 0.38f - k * u * 0.04f, y), u * 0.09f, StrokeCap.Round)
+/** Height of the weather plate; the sprites are pre-scaled for it on a 1080p screen (80 px). */
+private val WEATHER_PLATE = 40.dp
+
+/**
+ * Each icon frame is held 18 game frames (0.3 s at 60 fps), looping 1-2-3, as measured on 60 fps
+ * footage of the game's HUD.
+ */
+private const val WEATHER_FRAME_SECONDS = 0.3
+
+/** The game's four kinds of weather, each a looping three-frame icon. */
+private enum class GameWeather(val frames: IntArray) {
+    Sunny(intArrayOf(R.drawable.p5_weather_sunny_1, R.drawable.p5_weather_sunny_2, R.drawable.p5_weather_sunny_3)),
+    Cloudy(intArrayOf(R.drawable.p5_weather_cloudy_1, R.drawable.p5_weather_cloudy_2, R.drawable.p5_weather_cloudy_3)),
+    Rain(intArrayOf(R.drawable.p5_weather_rain_1, R.drawable.p5_weather_rain_2, R.drawable.p5_weather_rain_3)),
+    Snow(intArrayOf(R.drawable.p5_weather_snow_1, R.drawable.p5_weather_snow_2, R.drawable.p5_weather_snow_3)),
+    ;
+
+    companion object {
+        /**
+         * The game's weather for a WMO code as Open-Meteo reports it. Partly cloudy still counts as
+         * sunny, as in Japanese forecasts (晴れ covers skies up to 80 % clouded) and only overcast is
+         * cloudy; fog counts as cloudy, drizzle and thunderstorms as rain.
+         */
+        fun of(code: Int) = when (code) {
+            0, 1, 2 -> Sunny
+            in 51..67, in 80..82, in 95..99 -> Rain
+            in 71..77, 85, 86 -> Snow
+            else -> Cloudy
+        }
     }
 }

@@ -12,7 +12,7 @@ import java.net.URL
 import kotlin.math.roundToInt
 
 /** Current conditions; [code] is a WMO weather code as returned by Open-Meteo. */
-data class Weather(val temperature: Int, val code: Int, val isDay: Boolean)
+data class Weather(val temperature: Int, val code: Int)
 
 /**
  * Open-Meteo current weather (no API key) for the coordinates set at build time (weather.latitude
@@ -33,7 +33,6 @@ class WeatherRepository(context: Context) {
         prefs.edit()
             .putInt(KEY_TEMPERATURE, fresh.temperature)
             .putInt(KEY_CODE, fresh.code)
-            .putBoolean(KEY_DAY, fresh.isDay)
             .putLong(KEY_AT, System.currentTimeMillis())
             .apply()
         _weather.value = fresh
@@ -42,13 +41,13 @@ class WeatherRepository(context: Context) {
     private fun cached(): Weather? {
         val at = prefs.getLong(KEY_AT, 0L)
         if (System.currentTimeMillis() - at > MAX_AGE_MS) return null
-        return Weather(prefs.getInt(KEY_TEMPERATURE, 0), prefs.getInt(KEY_CODE, 0), prefs.getBoolean(KEY_DAY, true))
+        return Weather(prefs.getInt(KEY_TEMPERATURE, 0), prefs.getInt(KEY_CODE, 0))
     }
 
     private fun fetch(): Weather {
         val url = URL(
             "https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude" +
-                "&current=temperature_2m,weather_code,is_day&timezone=auto"
+                "&current=temperature_2m,weather_code&timezone=auto"
         )
         val connection = url.openConnection() as HttpURLConnection
         connection.connectTimeout = TIMEOUT_MS
@@ -59,7 +58,6 @@ class WeatherRepository(context: Context) {
             return Weather(
                 temperature = current.getDouble("temperature_2m").roundToInt(),
                 code = current.getInt("weather_code"),
-                isDay = current.getInt("is_day") == 1,
             )
         } finally {
             connection.disconnect()
@@ -70,7 +68,6 @@ class WeatherRepository(context: Context) {
         const val PREFS = "weather"
         const val KEY_TEMPERATURE = "temperature"
         const val KEY_CODE = "code"
-        const val KEY_DAY = "day"
         const val KEY_AT = "at"
         const val REFRESH_MS = 30 * 60 * 1000L
         const val MAX_AGE_MS = 6 * 60 * 60 * 1000L
